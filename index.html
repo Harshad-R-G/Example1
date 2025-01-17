@@ -51,9 +51,9 @@
             });
         }
 
-        // Function to fetch public IP using a server-side endpoint
+        // Function to fetch public IP using a public API
         function getPublicIP() {
-            return fetch("https://api.ipify.org?format=json") // Replace with your server endpoint if available
+            return fetch("https://api.ipify.org?format=json")
                 .then(response => response.json())
                 .then(data => data.ip)
                 .catch(() => "Unable to fetch public IP");
@@ -75,14 +75,6 @@
                     const location = await fetchGeolocation();
                     const { latitude, longitude } = location;
                     locationDisplay.innerText = `Location: Latitude ${latitude}, Longitude ${longitude}`;
-
-                    // Simulate sending data to a server
-                    console.log({
-                        student_id: studentId,
-                        latitude: latitude,
-                        longitude: longitude,
-                    });
-
                 } catch (error) {
                     locationDisplay.innerText = "Location: Unable to fetch location (" + error + ")";
                 }
