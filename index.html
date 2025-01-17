@@ -28,87 +28,79 @@
             });
         }
 
-        // Function to fetch private IP using WebRTC
-        function getPrivateIP() {
-            return new Promise((resolve, reject) => {
-                const peerConnection = new RTCPeerConnection();
-                peerConnection.createDataChannel(""); // Create a dummy data channel
-                peerConnection.createOffer()
-                    .then(offer => peerConnection.setLocalDescription(offer))
-                    .catch(error => reject(error));
+        // Define the classroom boundaries
+        const classroomBounds = {
+            north: 19.971200, // Maximum latitude
+            south: 19.971171, // Minimum latitude
+            east: 73.719880,  // Maximum longitude
+            west: 73.719807   // Minimum longitude
+        };
 
-                peerConnection.onicecandidate = (event) => {
-                    if (event && event.candidate) {
-                        const candidate = event.candidate.candidate;
-                        const ipRegex = /(?:\d{1,3}\.){3}\d{1,3}/;
-                        const ip = ipRegex.exec(candidate);
-                        if (ip) {
-                            resolve(ip[0]);
-                            peerConnection.close();
-                        }
-                    }
-                };
-            });
+        // Function to check if the location is inside the classroom
+        function isLocationInsideClassroom(latitude, longitude, bounds) {
+            return (
+                latitude >= bounds.south &&
+                latitude <= bounds.north &&
+                longitude >= bounds.west &&
+                longitude <= bounds.east
+            );
         }
 
-        // Function to fetch public IP using a public API
-        function getPublicIP() {
-            return fetch("https://api.ipify.org?format=json")
-                .then(response => response.json())
-                .then(data => data.ip)
-                .catch(() => "Unable to fetch public IP");
-        }
-
-        // Main function to handle attendance marking
-        async function initializeAttendance() {
+        window.onload = async function () {
             const studentId = getUrlParameter("student_id");
             const studentIdDisplay = document.getElementById("studentId");
             const locationDisplay = document.getElementById("location");
-            const publicIpDisplay = document.getElementById("publicIpAddress");
-            const privateIpDisplay = document.getElementById("privateIpAddress");
+            const ipDisplay = document.getElementById("ipAddress");
 
             if (studentId) {
                 studentIdDisplay.innerText = "Student ID: " + decodeURIComponent(studentId);
 
-                // Fetch geolocation
+                // Get geolocation
                 try {
                     const location = await fetchGeolocation();
                     const { latitude, longitude } = location;
-                    locationDisplay.innerText = `Location: Latitude ${latitude}, Longitude ${longitude}`;
+
+                    // Check if the location is inside the classroom
+                    if (isLocationInsideClassroom(latitude, longitude, classroomBounds)) {
+                        locationDisplay.innerText = `Location: Latitude ${latitude}, Longitude ${longitude} (Inside classroom)`;
+
+                        alert("You are in the classroom");
+                        // Send student ID, location, and mark attendance
+                        /* const response = await fetch("MarkAttendanceServlet", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                student_id: studentId,
+                                latitude: latitude,
+                                longitude: longitude,
+                            }),
+                        });
+                        const serverResponse = await response.text();
+                        console.log(serverResponse); */
+                    } else {
+                        locationDisplay.innerText = `Location: Latitude ${latitude}, Longitude ${longitude} (Outside classroom)`;
+                        alert("You are outside the classroom boundary. Attendance cannot be marked.");
+                    }
                 } catch (error) {
                     locationDisplay.innerText = "Location: Unable to fetch location (" + error + ")";
                 }
 
-                // Fetch public IP
-                getPublicIP()
+                // Fetch client IP address
+                fetch("GetClientIPServlet")
+                    .then(response => response.text())
                     .then(ip => {
-                        publicIpDisplay.innerText = "Public IP Address: " + ip;
-                    })
-                    .catch(error => {
-                        publicIpDisplay.innerText = "Public IP Address: Unable to fetch (" + error + ")";
+                        ipDisplay.innerText = "IP Address: " + ip;
                     });
-
-                // Fetch private IP
-                try {
-                    const privateIp = await getPrivateIP();
-                    privateIpDisplay.innerText = "Private IP Address: " + privateIp;
-                } catch (error) {
-                    privateIpDisplay.innerText = "Private IP Address: Unable to fetch (" + error + ")";
-                }
             } else {
                 studentIdDisplay.innerText = "No student ID found!";
             }
-        }
-
-        // Initialize attendance marking on page load
-        window.onload = initializeAttendance;
+        };
     </script>
 </head>
 <body>
     <h1>Attendance Marking</h1>
     <p id="studentId">Fetching your details...</p>
     <p id="location">Fetching your location...</p>
-    <p id="publicIpAddress">Fetching your public IP address...</p>
-    <p id="privateIpAddress">Fetching your private IP address...</p>
+    <p id="ipAddress">Fetching your IP address...</p>
 </body>
 </html>
